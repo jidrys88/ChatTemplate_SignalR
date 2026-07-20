@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChatTemplate — Test Client</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #151b23;
+    --border: #2a323d;
+    --text: #d7dee6;
+    --muted: #7d8b99;
+    --accent: #4fd1a5;
+    --accent-dim: #2c5c4a;
+    --danger: #e5605a;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--danger);
+    transition: background .2s;
+  }
+  header .dot.connected { background: var(--accent); }
+  h1 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 600; }
+  .status-text { font-size: 12px; color: var(--muted); }
+  main { flex: 1; display: grid; grid-template-columns: 260px 1fr; overflow: hidden; }
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    background: var(--panel);
+  }
+  section.chat { display: flex; flex-direction: column; overflow: hidden; }
+  .field { margin-bottom: 14px; }
+  label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+  input, button {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: #0a0f14;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 9px;
+    border-radius: 4px;
+    width: 100%;
+  }
+  button {
+    background: var(--accent-dim);
+    color: var(--accent);
+    cursor: pointer;
+    border-color: var(--accent-dim);
+    font-weight: 600;
+    transition: filter .15s;
+  }
+  button:hover { filter: brightness(1.2); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.secondary { background: transparent; color: var(--muted); border-color: var(--border); }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .msg { padding: 8px 10px; border-radius: 6px; background: var(--panel); border: 1px solid var(--border); max-width: 70%; }
+  .msg.mine { align-self: flex-end; background: var(--accent-dim); border-color: var(--accent-dim); }
+  .msg .meta { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .msg.mine .meta { color: #b7f5df; }
+  .msg .body { white-space: pre-wrap; word-break: break-word; }
+  .system-msg { align-self: center; color: var(--muted); font-size: 11px; padding: 4px 0; }
+  .error-msg { align-self: center; color: var(--danger); font-size: 12px; padding: 6px 10px; border: 1px solid var(--danger); border-radius: 4px; }
+  .composer { border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; }
+  .composer input { flex: 1; }
+  .composer button { width: auto; padding: 8px 18px; }
+  ul#online-list { list-style: none; padding: 0; margin: 6px 0 0; font-size: 12px; }
+  ul#online-list li { padding: 3px 0; color: var(--muted); }
+  ul#online-list li.online::before { content: "●"; color: var(--accent); margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="dot" id="conn-dot"></div>
+  <h1>ChatTemplate Test-Client</h1>
+  <span class="status-text" id="status-text">Getrennt</span>
+</header>
+
+<main>
+  <aside>
+    <div class="field">
+      <label for="api-base">API Basis-URL</label>
+      <input id="api-base" value="https://localhost:5001" />
+    </div>
+    <div class="field">
+      <label for="user-id">Deine User-ID</label>
+      <input id="user-id" value="user-1" />
+    </div>
+    <div class="field">
+      <label for="display-name">Anzeigename</label>
+      <input id="display-name" value="Alice" />
+    </div>
+    <div class="field">
+      <button id="btn-login">1. JWT anfordern &amp; verbinden</button>
+    </div>
+    <hr style="border-color: var(--border); margin: 16px 0;" />
+    <div class="field">
+      <label for="room-id">Raum-ID</label>
+      <div class="row">
+        <input id="room-id" value="general" />
+      </div>
+    </div>
+    <div class="row" style="margin-bottom: 14px;">
+      <button id="btn-join" disabled>Beitreten</button>
+      <button id="btn-leave" class="secondary" disabled>Verlassen</button>
+    </div>
+    <div class="field">
+      <label for="dm-target">Direktnachricht an User-ID</label>
+      <input id="dm-target" placeholder="z.B. user-2" />
+    </div>
+    <div class="field">
+      <label for="history-target">Historie laden fuer (Raum/User-ID)</label>
+      <div class="row">
+        <input id="history-target" value="general" />
+      </div>
+    </div>
+    <button id="btn-history" class="secondary" disabled>Historie streamen</button>
+
+    <div class="field" style="margin-top: 18px;">
+      <label>Online-Status (lokal beobachtet)</label>
+      <ul id="online-list"></ul>
+    </div>
+  </aside>
+
+  <section class="chat">
+    <div id="messages"></div>
+    <div class="composer">
+      <input id="message-input" placeholder="Nachricht eingeben… (an aktuellen Raum, oder an DM-Ziel falls gesetzt)" disabled />
+      <button id="btn-send" disabled>Senden</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  let connection = null;
+  let currentUserId = null;
+  let currentRoomId = null;
+
+  const $ = (id) => document.getElementById(id);
+  const messagesEl = $('messages');
+  const onlineListEl = $('online-list');
+  const onlineUsers = new Map();
+
+  function appendSystemMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'system-msg';
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function appendErrorMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'error-msg';
+    div.textContent = '⚠ ' + text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function appendChatMessage(dto) {
+    const div = document.createElement('div');
+    const isMine = dto.senderId === currentUserId;
+    div.className = 'msg' + (isMine ? ' mine' : '');
+    const time = new Date(dto.timestamp).toLocaleTimeString();
+    div.innerHTML = `<div class="meta">${dto.senderDisplayName} · ${dto.targetType === 1 ? 'DM' : dto.targetId} · ${time}</div><div class="body"></div>`;
+    div.querySelector('.body').textContent = dto.content;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function setConnectedUi(connected) {
+    $('conn-dot').classList.toggle('connected', connected);
+    $('status-text').textContent = connected ? `Verbunden als ${currentUserId}` : 'Getrennt';
+    for (const id of ['btn-join', 'btn-leave', 'btn-history', 'message-input', 'btn-send']) {
+      $(id).disabled = !connected;
+    }
+  }
+
+  function renderOnlineList() {
+    onlineListEl.innerHTML = '';
+    for (const [userId, isOnline] of onlineUsers.entries()) {
+      const li = document.createElement('li');
+      li.textContent = userId;
+      li.className = isOnline ? 'online' : '';
+      onlineListEl.appendChild(li);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // 1) JWT vom AuthController anfordern, danach SignalR-Verbindung aufbauen.
+  //    Das Token wird als Query-String-Parameter "access_token" mitgegeben,
+  //    da Browser bei WebSocket-Handshakes keine Authorization-Header setzen
+  //    koennen (siehe Program.cs -> JwtBearerEvents.OnMessageReceived).
+  // ---------------------------------------------------------------------
+  $('btn-login').addEventListener('click', async () => {
+    const apiBase = $('api-base').value.trim();
+    currentUserId = $('user-id').value.trim();
+    const displayName = $('display-name').value.trim();
+
+    try {
+      const response = await fetch(`${apiBase}/api/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUserId, displayName })
+      });
+
+      if (!response.ok) {
+        appendErrorMessage(`Token-Anfrage fehlgeschlagen: HTTP ${response.status}`);
+        return;
+      }
+
+      const { accessToken } = await response.json();
+
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(`${apiBase}/hubs/chat`, { accessTokenFactory: () => accessToken })
+        .withAutomaticReconnect()
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+      registerHubHandlers();
+
+      await connection.start();
+      setConnectedUi(true);
+      appendSystemMessage('Verbindung hergestellt.');
+    } catch (err) {
+      appendErrorMessage('Verbindung fehlgeschlagen: ' + (err?.message ?? err));
+    }
+  });
+
+  function registerHubHandlers() {
+    // Stark typisierte Client-Methoden, wie in IChatClient auf Serverseite definiert
+    // (camelCase, da AddJsonProtocol in Program.cs CamelCase konfiguriert).
+    connection.on('receiveMessage', appendChatMessage);
+
+    connection.on('userOnline', (presence) => {
+      onlineUsers.set(presence.userId, true);
+      renderOnlineList();
+      appendSystemMessage(`${presence.userId} ist online gegangen.`);
+    });
+
+    connection.on('userOffline', (presence) => {
+      onlineUsers.set(presence.userId, false);
+      renderOnlineList();
+      appendSystemMessage(`${presence.userId} ist offline gegangen.`);
+    });
+
+    connection.on('joinedRoom', (roomId) => {
+      currentRoomId = roomId;
+      appendSystemMessage(`Raum "${roomId}" beigetreten.`);
+    });
+
+    connection.on('leftRoom', (roomId) => {
+      appendSystemMessage(`Raum "${roomId}" verlassen.`);
+    });
+
+    connection.on('receiveError', (message) => appendErrorMessage(message));
+
+    connection.onreconnecting(() => setConnectedUi(false));
+    connection.onreconnected(() => setConnectedUi(true));
+    connection.onclose(() => setConnectedUi(false));
+  }
+
+  $('btn-join').addEventListener('click', async () => {
+    try {
+      await connection.invoke('JoinRoom', $('room-id').value.trim());
+    } catch (err) {
+      // HubException-Nachrichten landen hier im err.message
+      appendErrorMessage(err?.message ?? String(err));
+    }
+  });
+
+  $('btn-leave').addEventListener('click', async () => {
+    try {
+      await connection.invoke('LeaveRoom', $('room-id').value.trim());
+    } catch (err) {
+      appendErrorMessage(err?.message ?? String(err));
+    }
+  });
+
+  $('btn-send').addEventListener('click', sendMessage);
+  $('message-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+
+  async function sendMessage() {
+    const content = $('message-input').value.trim();
+    const dmTarget = $('dm-target').value.trim();
+    if (!content) return;
+
+    try {
+      if (dmTarget) {
+        await connection.invoke('SendPrivateMessage', dmTarget, content);
+      } else {
+        await connection.invoke('SendGroupMessage', $('room-id').value.trim(), content);
+      }
+      $('message-input').value = '';
+    } catch (err) {
+      appendErrorMessage(err?.message ?? String(err));
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Historien-Streaming: IAsyncEnumerable<ChatMessageDto> wird client-seitig
+  // ueber connection.stream(...) konsumiert (nicht invoke!).
+  // ---------------------------------------------------------------------
+  $('btn-history').addEventListener('click', () => {
+    const targetId = $('history-target').value.trim();
+    appendSystemMessage(`Lade Historie fuer "${targetId}" …`);
+
+    connection.stream('GetMessageHistoryStreamAsync', targetId, 100).subscribe({
+      next: (dto) => appendChatMessage(dto),
+      complete: () => appendSystemMessage('Historie vollstaendig geladen.'),
+      error: (err) => appendErrorMessage('Historien-Stream-Fehler: ' + (err?.message ?? err))
+    });
+  });
+</script>
+</body>
+</html>

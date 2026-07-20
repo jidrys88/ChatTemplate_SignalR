@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "ChatTemplate Authors",
+  "classifications": [ "Web", "SignalR", "Chat", "Clean Architecture", "C#" ],
+  "identity": "ChatTemplate.SignalR.CleanArchitecture",
+  "name": "SignalR Chat System (Clean Architecture, .NET 10)",
+  "shortName": "signalr-chat",
+  "description": "Ein modulares, lauffaehiges SignalR-Chat-System nach Clean Architecture (Core/Infrastructure/API) auf Basis von .NET 10 / C# 13, inkl. JWT-Auth, Praesenz-Tracking, Streaming-Historie, EF-Core/In-Memory-Datenhaltung, Redis-Scale-Out-Vorbereitung sowie Console- und Web-Testclients.",
+  "sourceName": "ChatTemplate",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+
+  "symbols": {
+    "UsePersistentDatabase": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Wenn 'true', wird appsettings.json mit DatabaseSettings:UsePersistentDatabase=true generiert (EF Core statt In-Memory-Repository)."
+    },
+    "DatabaseProvider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "Sqlite", "description": "SQLite - fuer lokale Entwicklung." },
+        { "choice": "Postgres", "description": "PostgreSQL - fuer Produktion." }
+      ],
+      "defaultValue": "Sqlite",
+      "description": "Datenbank-Provider fuer die EF-Core-Implementierung."
+    }
+  },
+
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!UsePersistentDatabase)",
+          "rename": {}
+        }
+      ]
+    }
+  ],
+
+  "primaryOutputs": [
+    { "path": "ChatTemplate.sln" }
+  ],
+
+  "postActions": [
+    {
+      "condition": "true",
+      "description": "NuGet-Pakete fuer alle Projekte der Solution wiederherstellen.",
+      "manualInstructions": [
+        { "text": "Fuehren Sie 'dotnet restore' im Projektverzeichnis aus." }
+      ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9565",
+      "continueOnError": true
+    }
+  ]
+}
