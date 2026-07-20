@@ -9,6 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Erforderlich, damit Typen aus Microsoft.AspNetCore.SignalR (z.B. ISignalRServerBuilder)
+         in diesem Nicht-Web-SDK-Projekt aufgeloest werden koennen. Ohne diese FrameworkReference
+         ist die ASP.NET-Core-Shared-Framework-Assembly hier nicht sichtbar (CS0246). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />

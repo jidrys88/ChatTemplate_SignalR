@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using ChatTemplate.Core.Dtos;
+using Microsoft.AspNetCore.SignalR;        // HubException
 using Microsoft.AspNetCore.SignalR.Client;
 
 // ---------------------------------------------------------------------------

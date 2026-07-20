@@ -2,6 +2,7 @@ using ChatTemplate.Core.Interfaces;
 using ChatTemplate.Infrastructure.Persistence;
 using ChatTemplate.Infrastructure.Presence;
 using ChatTemplate.Infrastructure.Repositories;
+using Microsoft.AspNetCore.SignalR; // ISignalRServerBuilder, AddStackExchangeRedis-Erweiterung
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
